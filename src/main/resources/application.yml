@@ -1,0 +1,71 @@
+server:
+  port: 8081
+
+# 1. 基础 Redis 配置 (Redisson 会自动读取)
+spring:
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      # password:
+
+# j-multi-cache 配置
+j-multi-cache:
+
+  # 默认配置
+  defaults:
+    redis-ttl: 1h
+    local-ttl: 1m
+    empty-cache-ttl: 1s
+    empty-cache-value: "【BINGO】"
+
+  configs:
+    TEST_USER_CACHE:            # 多级缓存配置名
+      namespace: "test:user"    # 命名空间，缓存key前缀
+      redis-ttl: 2s             # redis缓存过期时间
+      local-ttl: 1s            # 本地缓存过期时间
+      local-max-size: 2000      # 本地缓存最大条数
+      entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"   # 缓存实体类
+      key-field: "#id"          # 缓存key字段，支持SpEL表达式
+
+    TEST_USER_CACHE_BY_TENANT_ID:
+      namespace: "test:user:tenantId_id"
+      redis-ttl: 41s
+      local-ttl: 0            # 0 代表禁用
+      local-max-size: 2000
+      entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"
+      key-field: "#tenantId + ':' + #id"
+
+    TEST_USER_CACHE_LIST:
+      namespace: "test:user:list"
+      redis-ttl: 2m
+      local-ttl: 1m
+      storage-type: list
+      entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"
+      key-field: "#tenantId"
+
+    TEST_USER_ID_SET:
+      namespace: "test:user:set:id"
+      redis-ttl: 100m
+      local-ttl: 98m
+      storage-type: set
+      entity-class: "java.lang.Long"
+
+    TEST_USER_PAGE:
+      namespace: "test:user:page"
+      redis-ttl: 2m
+      local-ttl: 2m
+      storage-type: page
+      entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"
+      key-field: "#userId + ':' + #dateType + ':' + #status + ':' + #page + ':' + #size"
+
+    TEST_USER_HASH:
+      namespace: "test:user:hash"
+      redis-ttl: 30s
+      local-ttl: 20s
+      storage-type: hash
+      entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"
+
+
+
