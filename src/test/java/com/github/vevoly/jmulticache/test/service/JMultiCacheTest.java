@@ -2,7 +2,8 @@ package com.github.vevoly.jmulticache.test.service;
 
 import com.github.vevoly.jmulticache.test.entity.TestUser;
 import io.github.vevoly.jmulticache.api.JMultiCache;
-import io.github.vevoly.jmulticache.api.JMultiCacheAdmin;
+import io.github.vevoly.jmulticache.api.JMultiCacheEnumGenerator;
+import io.github.vevoly.jmulticache.api.JMultiCacheOps;
 import io.github.vevoly.jmulticache.api.utils.JMultiCacheHelper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,9 +15,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.function.Function;
@@ -34,7 +35,10 @@ class JMultiCacheTest {
     private JMultiCache jMultiCache;
 
     @Autowired
-    private JMultiCacheAdmin jMultiCacheAdmin;
+    private JMultiCacheOps jMultiCacheOps;
+
+    @Autowired
+    private JMultiCacheEnumGenerator jMultiCacheEnumGenerator;
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
@@ -93,7 +97,7 @@ class JMultiCacheTest {
 
         // 模拟手动调用，或者调用 Service 中对应的方法
         // 这里假设直接使用 jMultiCache 手动调用来测试配置
-        TestUser user = new TestUser(userId, tenantId, "SpEL-User", 20);
+        TestUser user = new TestUser(userId, tenantId, 1L, "SpEL-User", 20);
 
         TestUser testUserCacheByTenantId = jMultiCache.fetchData("TEST_USER_CACHE_BY_TENANT_ID",
                 () -> user,
@@ -169,8 +173,8 @@ class JMultiCacheTest {
         // 配置：TEST_USER_CACHE_LIST, Key: #tenantId
         String tenantId = "tenant_list_01";
         List<TestUser> users = Arrays.asList(
-                new TestUser(1L, tenantId, "A", 10),
-                new TestUser(2L, tenantId, "B", 20)
+                new TestUser(1L, tenantId, 1L, "A", 10),
+                new TestUser(2L, tenantId, 1L, "B", 20)
         );
 
         // 存入 List
@@ -247,7 +251,7 @@ class JMultiCacheTest {
     void testNoLocalCacheConfig() {
         // 配置：TEST_USER_CACHE_BY_TENANT_ID (local-ttl: null)
 
-        TestUser user = new TestUser(4004L, "T1", "NoLocal", 10);
+        TestUser user = new TestUser(4004L, "T1",1L, "NoLocal", 10);
         jMultiCache.fetchData("TEST_USER_CACHE_BY_TENANT_ID", () -> user, user.getTenantId(), valueOf(user.getId()));
 
         // 1. Redis 应该有值
@@ -257,7 +261,8 @@ class JMultiCacheTest {
         // 2. 本地缓存应该没有值
         // 这需要调用 jMultiCache 内部方法验证，或者断点调试
         // 也可以通过 debug 日志观察，或者反射去 Caffeine Cache 里看
-        jMultiCacheAdmin.evict("TEST_USER_CACHE_BY_TENANT_ID", user.getTenantId(), valueOf(user.getId()));
+        jMultiCacheOps.evict("TEST_USER_CACHE_BY_TENANT_ID", user.getTenantId(), valueOf(user.getId()));
+        log.info("已删除" + JMultiCacheHelper.buildKey("TEST_USER_CACHE_BY_TENANT_ID", user.getTenantId(), valueOf(user.getId())));
         // 因为查询数据库后会回种，所以需要打断点确认是否没走L1
         Object localValue = jMultiCache.fetchData(redisKey, () -> user);
         assertThat(localValue).isNull();
@@ -324,8 +329,8 @@ class JMultiCacheTest {
 
         // 3. 模拟 DB 返回的数据
         List<TestUser> dbRecords = new ArrayList<>();
-        dbRecords.add(new TestUser(101L, "T1", "UserA", 20));
-        dbRecords.add(new TestUser(102L, "T1", "UserB", 22));
+        dbRecords.add(new TestUser(101L, "T1", 1L, "UserA", 20));
+        dbRecords.add(new TestUser(102L, "T1", 1L, "UserB", 22));
 
         MockPage<TestUser> dbPage = new MockPage<>(current, size, 100L, dbRecords);
 
@@ -510,7 +515,7 @@ class JMultiCacheTest {
         // Hash Field (项)
         String field = "1001";
 
-        TestUser dbUser = new TestUser(1001L, "G1", "HashUser1", 18);
+        TestUser dbUser = new TestUser(1001L, "G1", 1L, "HashUser1", 18);
 
         // 1. 清理环境
         stringRedisTemplate.delete(hashKey);
@@ -546,7 +551,7 @@ class JMultiCacheTest {
                 hashKey,
                 field,
                 TestUser.class,
-                () -> new TestUser(1001L, "G1", "CHANGED", 99)
+                () -> new TestUser(1001L, "G1", 1L, "CHANGED", 99)
         );
 
         // 结果应该是旧值
@@ -586,4 +591,16 @@ class JMultiCacheTest {
             log.warn("该框架版本似乎没有对 Hash Field 进行空值缓存");
         }
     }
+
+    @Test
+    @DisplayName("开发辅助：生成真实枚举文件 (仅手动调用)")
+    void testJMultiCacheEnumGenerator() {
+        try {
+            jMultiCacheEnumGenerator.generateEnum();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
+
+

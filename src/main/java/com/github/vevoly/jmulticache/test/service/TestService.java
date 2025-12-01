@@ -18,7 +18,7 @@ public class TestService {
     TestUser mockDbQuery(Long id) {
         log.info(">>>>>> [DB Query] 正在查询数据库 id={}...", id);
         try { Thread.sleep(50); } catch (InterruptedException e) {}
-        return new TestUser(id, "tenant001", "User-" + id, 18);
+        return new TestUser(id, "tenant001", 1L, "User-" + id, 18);
     }
 
     // --- 场景 1: 测试注解 ---
