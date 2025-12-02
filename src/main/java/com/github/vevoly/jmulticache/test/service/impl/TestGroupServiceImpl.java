@@ -7,6 +7,7 @@ import io.github.vevoly.jmulticache.api.JMultiCachePreload;
 import io.github.vevoly.jmulticache.api.annotation.JMultiCachePreloadable;
 import io.github.vevoly.jmulticache.api.annotation.JMultiCacheable;
 import io.github.vevoly.jmulticache.api.utils.StreamUtils;
+import jmulticache.generated.JMultiCacheName;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;

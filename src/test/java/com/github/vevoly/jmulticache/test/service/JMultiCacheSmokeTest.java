@@ -1,7 +1,7 @@
 package com.github.vevoly.jmulticache.test.service;
 
 import com.github.vevoly.jmulticache.test.entity.TestUser;
-import io.github.vevoly.jmulticache.api.JMultiCacheAdmin;
+import io.github.vevoly.jmulticache.api.JMultiCacheOps;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,14 +14,14 @@ class JMultiCacheSmokeTest {
     private TestService testService;
 
     @Autowired
-    private JMultiCacheAdmin jMultiCacheAdmin;
+    private JMultiCacheOps jMultiCacheOps;
 
     @Test
     void testCacheFlow() {
         Long userId = 1001L;
 
         // 0. 清理环境
-        jMultiCacheAdmin.evict("TEST_USER_CACHE", userId);
+        jMultiCacheOps.evict("TEST_USER_CACHE", userId);
         System.out.println("--------------------------------------------------");
 
         // 1. 第一次查询：应该走 DB，并回填 L2 + L1
@@ -40,14 +40,14 @@ class JMultiCacheSmokeTest {
         Assertions.assertEquals(user1.getName(), user3.getName());
 
         // 4. 模拟 缓存 失效
-        jMultiCacheAdmin.evict("TEST_USER_CACHE", userId);
+        jMultiCacheOps.evict("TEST_USER_CACHE", userId);
         System.out.println("--------------------------------------------------");
         System.out.println("\nStep 4: 手动 API 查询 (Expect: DB hit)");
         TestUser user4 = testService.getUserByIdManual(userId);
         Assertions.assertEquals(user1.getName(), user4.getName());
 
         // 5. 模拟 缓存L1 失效
-        jMultiCacheAdmin.evictL1("TEST_USER_CACHE", userId);
+        jMultiCacheOps.evictL1("TEST_USER_CACHE", userId);
         System.out.println("--------------------------------------------------");
         System.out.println("\nStep 5: 手动 API 查询 (Expect: L2 hit)");
         TestUser user5 = testService.getUserByIdManual(userId);
