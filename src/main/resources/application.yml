@@ -91,6 +91,14 @@ j-multi-cache:
       entity-class: "com.github.vevoly.jmulticache.test.entity.dto.UserRank"
       key-field: "#region"
 
+    TEST_GZIP_CACHE:
+      namespace: "test:gzip:article"
+      # 🔥 自定义的类型
+      storage-type: gzip
+      redis-ttl: 1h
+      local-ttl: 10s
+      entity-class: "com.github.vevoly.jmulticache.test.entity.LongArticle"
+      key-field: "#id"
 
 
 

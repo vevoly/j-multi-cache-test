@@ -658,16 +658,24 @@ class JMultiCacheTest {
         // 1002 在 Redis 里 (Step 0 预热的) -> 走 L2
         // 1001, 1003 不在 -> 走 DB 回源 -> 回填
 
-        // 手动批量获取
+        // 手动批量获取，返回Map
         Map<Long, TestUser> userMap = (Map<Long, TestUser>) jMultiCache.fetchMultiDataMap(
                 "TEST_USER_CACHE",
                 userIds,
                 "id", // 业务主键字段名，针对结果
                 missingIds -> rankService.mockBatchQueryUsers(missingIds) // DB 回源函数
         );
+        // 手动批量获取，返回List
+        List<TestUser> userList = jMultiCache.fetchMultiDataList(
+                "TEST_USER_CACHE",
+                userIds,
+                "id",
+                missingIds -> {
+                    return (TestUser) Arrays.asList(new TestUser(9000L, "T1", 1L, "User-9000", 18));
+                }
+        );
 
         List<Long> newUserIds = Arrays.asList(1003L, 1001L, 1002L, 9000L);
-
         // 自动档批量获取
         List<TestUser> users = testService.getUsersByIdsAnnotation(newUserIds);
 
