@@ -1,11 +1,15 @@
 package com.github.vevoly.jmulticache.test.service;
 
 import com.github.vevoly.jmulticache.test.entity.TestUser;
+import com.github.vevoly.jmulticache.test.entity.dto.UserRank;
 import io.github.vevoly.jmulticache.api.JMultiCache;
 import io.github.vevoly.jmulticache.api.annotation.JMultiCacheable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,4 +45,13 @@ public class TestService {
     public TestUser getUserByTenantIdIdManual(String tenantId, Long id) {
         return jMultiCache.fetchData("TEST_USER_CACHE_BY_TENANT_ID", () -> mockDbQuery(id), tenantId, String.valueOf(id));
     }
+
+    @JMultiCacheable(configName = "TEST_USER_CACHE")
+    List<TestUser> getUsersByIdsAnnotation(Collection<Long> ids) {
+        return Arrays.asList(
+                new TestUser(9000L, "T1", 1L,"PoorMan", 28),
+                new TestUser(90001L, "T1", 1L, "BatMan", 30)
+        );
+    }
+
 }

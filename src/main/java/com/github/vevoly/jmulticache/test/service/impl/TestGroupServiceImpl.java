@@ -2,6 +2,7 @@ package com.github.vevoly.jmulticache.test.service.impl;
 
 import com.github.vevoly.jmulticache.test.entity.TestGroup;
 import com.github.vevoly.jmulticache.test.service.TestGroupService;
+import io.github.vevoly.jmulticache.api.JMultiCache;
 import io.github.vevoly.jmulticache.api.JMultiCacheOps;
 import io.github.vevoly.jmulticache.api.JMultiCachePreload;
 import io.github.vevoly.jmulticache.api.annotation.JMultiCachePreloadable;
@@ -21,6 +22,8 @@ import java.util.Map;
 @JMultiCachePreloadable
 public class TestGroupServiceImpl implements TestGroupService, JMultiCachePreload {
 
+    @Autowired
+    private JMultiCache jMultiCache;
     @Autowired
     private JMultiCacheOps jMultiCacheOps;
 

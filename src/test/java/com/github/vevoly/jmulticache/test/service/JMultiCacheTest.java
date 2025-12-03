@@ -1,6 +1,7 @@
 package com.github.vevoly.jmulticache.test.service;
 
 import com.github.vevoly.jmulticache.test.entity.TestUser;
+import com.github.vevoly.jmulticache.test.entity.dto.UserRank;
 import io.github.vevoly.jmulticache.api.JMultiCache;
 import io.github.vevoly.jmulticache.api.JMultiCacheEnumGenerator;
 import io.github.vevoly.jmulticache.api.JMultiCacheOps;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.data.redis.connection.DataType;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.io.IOException;
@@ -22,6 +24,7 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static java.lang.String.valueOf;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +47,10 @@ class JMultiCacheTest {
     private StringRedisTemplate stringRedisTemplate;
 
     @SpyBean
-    private TestService testService; // 使用 SpyBean 监控 Service 的真实调用情况
+    private TestService testService;
+
+    @SpyBean
+    private RankService rankService;
 
     @BeforeEach // 清理缓存的辅助方法
     void setUp() {
@@ -600,6 +606,94 @@ class JMultiCacheTest {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test
+    @DisplayName("集成测试：ZSet获取榜单(手动)")
+    void testRankManual() {
+        String region = "BJ";
+        List<UserRank> ranks = rankService.getRankByRegionManual(region);
+        log.info("Rank by region manual: {}", ranks);
+        assertThat(ranks).hasSize(3);
+        assertThat(ranks.get(0).getUserId()).isEqualTo(1003L); // 分数最低 100.0
+        assertThat(ranks.get(2).getUserId()).isEqualTo(1002L); // 分数最高 8888.0
+
+    }
+
+    @Test
+    @DisplayName("集成测试：ZSet获取榜单 -> 提取ID -> 批量获取详情 (部分命中)")
+    void testRankAndBatchDetails() {
+        String region = "SH";
+
+        // =============================================================
+        // Step 0: 预热数据 (制造"部分缓存命中"的场景)
+        // =============================================================
+        // 我们假设 ID=1002 (榜一大哥) 是热点用户，他的详情已经在缓存里了
+        TestUser hotUser = new TestUser(1002L, "T1", 1L, "Rich-Man-1002", 30);
+        // 使用 preload 预热详情缓存
+        jMultiCacheOps.preloadMultiCache("TEST_USER_CACHE", Map.of("1002", hotUser));
+
+        log.info("=== 步骤 1: 获取排行榜索引 (ZSet) ===");
+        // 调用 Service，此时缓存为空，会查 DB 并回填 ZSet
+        List<UserRank> ranks = rankService.getRankByRegion(region);
+
+        // 验证 ZSet 排序 (Redis 默认从小到大: 1003->1001->1002)
+        assertThat(ranks).hasSize(3);
+        assertThat(ranks.get(0).getUserId()).isEqualTo(1003L); // 分数最低 100.0
+        assertThat(ranks.get(2).getUserId()).isEqualTo(1002L); // 分数最高 8888.0
+
+        // 验证 Redis 结构
+        DataType dataType = stringRedisTemplate.type("test:game:rank:" + region); // zset
+        assertThat(dataType.code()).isEqualTo("zset");
+
+
+        log.info("=== 步骤 2: 提取 ID 列表 ===");
+        List<Long> userIds = ranks.stream()
+                .map(UserRank::getUserId)
+                .collect(Collectors.toList());
+        assertThat(userIds).containsExactly(1003L, 1001L, 1002L);
+
+
+        log.info("=== 步骤 3: 批量获取用户详情 (Mixed Hit) ===");
+        // 1002 在 Redis 里 (Step 0 预热的) -> 走 L2
+        // 1001, 1003 不在 -> 走 DB 回源 -> 回填
+
+        // 手动批量获取
+        Map<Long, TestUser> userMap = (Map<Long, TestUser>) jMultiCache.fetchMultiDataMap(
+                "TEST_USER_CACHE",
+                userIds,
+                "id", // 业务主键字段名，针对结果
+                missingIds -> rankService.mockBatchQueryUsers(missingIds) // DB 回源函数
+        );
+
+        List<Long> newUserIds = Arrays.asList(1003L, 1001L, 1002L, 9000L);
+
+        // 自动档批量获取
+        List<TestUser> users = testService.getUsersByIdsAnnotation(newUserIds);
+
+        log.info("=== 步骤 4: 验证结果与逻辑 ===");
+
+        // 4.1 验证数据完整性
+        assertThat(userMap).hasSize(3);
+        // 验证 1002 是预热的数据 (Rich-Man)
+        assertThat(userMap.get(1002L).getName()).isEqualTo("Rich-Man-1002");
+        // 验证 1001 是 DB 查出来的 (User-1001)
+        assertThat(userMap.get(1001L).getName()).isEqualTo("User-1001");
+
+        // 4.2 验证 DB 回源参数 (关键!)
+        // 期望：mockBatchQueryUsers 只被调用了 1 次
+        // 且参数里只包含 [1001, 1003]，绝对不包含 1002
+        verify(rankService, times(1)).mockBatchQueryUsers(argThat(args -> {
+            log.info("DB 实际查询的 ID: {}", args);
+            return args.size() == 2
+                    && args.contains(1001L)
+                    && args.contains(1003L)
+                    && !args.contains(1002L);
+        }));
+
+        // 4.3 验证回填
+        // 1001 之前不在缓存，现在应该在 Redis 里了
+        assertThat(stringRedisTemplate.hasKey("test:user:1001")).isTrue();
     }
 }
 

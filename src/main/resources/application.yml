@@ -23,8 +23,8 @@ j-multi-cache:
   configs:
     TEST_USER_CACHE:            # 多级缓存配置名
       namespace: "test:user"    # 命名空间，缓存key前缀
-      redis-ttl: 2s             # redis缓存过期时间
-      local-ttl: 1s            # 本地缓存过期时间
+      redis-ttl: 2m             # redis缓存过期时间
+      local-ttl: 1m            # 本地缓存过期时间
       local-max-size: 2000      # 本地缓存最大条数
       entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"   # 缓存实体类
       key-field: "#id"          # 缓存key字段，支持SpEL表达式
@@ -81,6 +81,16 @@ j-multi-cache:
       storage-type: list
       entity-class: "com.github.vevoly.jmulticache.test.entity.TestGroup"
       key-field: "#tenantId"
+
+    TEST_GAME_RANK:
+      namespace: "test:game:rank"
+      storage-type: zset
+      redis-ttl: 1h
+      local-ttl: 5s
+      # 实体类必须实现 JMultiCacheScorable
+      entity-class: "com.github.vevoly.jmulticache.test.entity.dto.UserRank"
+      key-field: "#region"
+
 
 
 
