@@ -130,6 +130,31 @@ class JMultiCacheTest {
         assertThat(hasKey).as("SpEL 生成的 Redis Key 不正确").isTrue();
     }
 
+    @Test
+    @DisplayName("测试后缀：后缀必须在 Key 的最后面")
+    void testWeirdSuffixPosition() {
+        Long userId = 1001L;
+        String expectedRedisKey = "test:user:" + userId + ":suffix";
+
+        // 1. 查询 (DB -> Redis)
+        TestUser user = testService.getUserWeirdSuffix(userId);
+        assertThat(user).isNotNull();
+
+        // 2. 验证 Redis Key 是否完全匹配预期
+        Boolean hasKey = stringRedisTemplate.hasKey(expectedRedisKey);
+
+        // 如果这里通过，说明 key-field: "#id + ':' + #role + ':suffix'" 生效了
+        assertThat(hasKey)
+                .as("Redis Key 生成位置错误，预期为: " + expectedRedisKey)
+                .isTrue();
+
+        // 3. 验证删除 (Evict)
+        // 删除时，参数顺序必须依然是 (id, role)，因为 SpEL 是根据参数位置或名字解析的
+        jMultiCacheOps.evict("TEST_WEIRD_SUFFIX", userId);
+
+        assertThat(stringRedisTemplate.hasKey(expectedRedisKey)).isFalse();
+    }
+
     // ==========================================
     // 2. 缓存防穿透测试 (Empty Cache)
     // ==========================================

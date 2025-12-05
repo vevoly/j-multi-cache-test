@@ -24,10 +24,18 @@ j-multi-cache:
     TEST_USER_CACHE:            # 多级缓存配置名
       namespace: "test:user"    # 命名空间，缓存key前缀
       redis-ttl: 2m             # redis缓存过期时间
-      local-ttl: 1m            # 本地缓存过期时间
+      local-ttl: 1m             # 本地缓存过期时间
       local-max-size: 2000      # 本地缓存最大条数
       entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"   # 缓存实体类
       key-field: "#id"          # 缓存key字段，支持SpEL表达式
+
+    TEST_WEIRD_SUFFIX:          # 对于带有固定后缀的缓存
+      namespace: "test:user"
+      redis-ttl: 1h
+      local-ttl: 1m
+      entity-class: "com.github.vevoly.jmulticache.test.entity.TestUser"
+      # 🔥 在 SpEL 里手动把后缀拼在最后
+      key-field: "#id + ':suffix'"
 
     TEST_USER_CACHE_BY_TENANT_ID:
       namespace: "test:user:tenantId_id"

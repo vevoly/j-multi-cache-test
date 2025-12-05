@@ -54,4 +54,10 @@ public class TestService {
         );
     }
 
+    @JMultiCacheable(configName = "TEST_WEIRD_SUFFIX")
+    public TestUser getUserWeirdSuffix(Long id) {
+        log.info(">>>>>> [DB Query Suffix] id={}", id);
+        return new TestUser(id, "weird_suffix", 1L, "User-" + id, 18);
+    }
+
 }

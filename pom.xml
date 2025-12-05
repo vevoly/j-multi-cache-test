@@ -19,7 +19,6 @@
     </properties>
 
     <dependencies>
-        <!-- Web 模块 (可选，方便写 Controller 测试) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -29,10 +28,9 @@
         <dependency>
             <groupId>io.github.vevoly</groupId>
             <artifactId>j-multi-cache-spring-boot-starter</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
         </dependency>
 
-        <!-- 测试模块 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
