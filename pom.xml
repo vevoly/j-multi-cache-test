@@ -28,7 +28,7 @@
         <dependency>
             <groupId>io.github.vevoly</groupId>
             <artifactId>j-multi-cache-spring-boot-starter</artifactId>
-            <version>1.0.2</version>
+            <version>1.0.3</version>
         </dependency>
 
         <dependency>
